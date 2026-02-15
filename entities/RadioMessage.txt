@@ -1,0 +1,13 @@
+{
+  "id": "string",
+  "fromCallsign": "JA1XXX",
+  "toCallsign": null,
+  "channel": "7.030",
+  "mode": "CW",
+  "type": "CW_MORSE",
+  "payload": {
+    "morse": "... --- ...",
+    "textPreview": "SOS"
+  },
+  "createdAt": 1700000000000
+}

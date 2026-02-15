@@ -1,0 +1,8 @@
+{
+  "callsign": "JA2YYY",
+  "name": "TARO",
+  "location": "TOKYO",
+  "notes": "",
+  "lastQsoAt": 1700000060000,
+  "qsoCount": 3
+}
