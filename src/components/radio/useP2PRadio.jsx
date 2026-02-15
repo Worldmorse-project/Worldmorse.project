@@ -1,201 +1,168 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getWsUrl,
+  getOnlineStations,
+  getRecentMessages,
+  registerStation,
+  sendCwMorse,
+} from "@/api/base44Client";
 
-// Cookie操作ユーティリティ
-const getCookie = (name) => {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return decodeURIComponent(parts.pop().split(';').shift());
-  }
-  return null;
-};
+/**
+ * WorldMorse v4.3 用 useP2PRadio
+ * - Base44を完全排除
+ * - Renderサーバ(API + WS) 前提
+ *
+ * 返り値の形は既存UI(Home.jsx)に合わせている：
+ * { messages, onlineStations, callsign, setCallsign, isConnected, sendMessage }
+ */
+
+function normalizeCallsign(cs) {
+  return String(cs || "").trim().toUpperCase();
+}
+
+function loadCallsign() {
+  try {
+    const v = localStorage.getItem("wm_callsign");
+    if (v) return normalizeCallsign(v);
+  } catch {}
+  // cookie fallback
+  const m = document.cookie.match(/(?:^|;\s*)ham_callsign=([^;]+)/);
+  if (m && m[1]) return normalizeCallsign(decodeURIComponent(m[1]));
+  return "";
+}
+
+function saveCallsign(cs) {
+  const v = normalizeCallsign(cs);
+  try {
+    localStorage.setItem("wm_callsign", v);
+  } catch {}
+  const d = new Date();
+  d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000);
+  document.cookie = `ham_callsign=${encodeURIComponent(v)}; expires=${d.toUTCString()}; path=/`;
+}
 
 export default function useP2PRadio(frequency, mode) {
+  const channel = useMemo(() => Number(frequency).toFixed(3), [frequency]);
+
+  const [callsign, setCallsignState] = useState(() => loadCallsign());
+  const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState([]);
   const [onlineStations, setOnlineStations] = useState([]);
-  const [callsign, setCallsign] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-  
-  const pollingInterval = useRef(null);
-  const lastMessageTime = useRef(new Date().toISOString());
 
-  // コールサインの初期化
-  useEffect(() => {
-    const savedCallsign = getCookie('ham_callsign');
-    if (savedCallsign) {
-      setCallsign(savedCallsign);
-    }
+  const wsRef = useRef(null);
+  const pollRef = useRef(null);
+
+  const setCallsign = useCallback((cs) => {
+    const v = normalizeCallsign(cs);
+    saveCallsign(v);
+    setCallsignState(v);
   }, []);
 
-  // 自局の状態を更新（定期的に）
-  const updatePresence = useCallback(async () => {
-    if (!callsign) return;
-
-    try {
-      // 既存のプレゼンス情報を検索
-      const existingPresence = await base44.entities.RadioMessage.filter({
-        callsign: callsign,
-        content: '__PRESENCE__'
-      });
-
-      const presenceData = {
-        callsign,
-        frequency,
-        mode,
-        content: '__PRESENCE__',
-        timestamp: new Date().toISOString()
-      };
-
-      if (existingPresence.length > 0) {
-        // 更新
-        await base44.entities.RadioMessage.update(existingPresence[0].id, presenceData);
-      } else {
-        // 新規作成
-        await base44.entities.RadioMessage.create(presenceData);
-      }
-      
-      setIsConnected(true);
-    } catch (error) {
-      console.error('プレゼンス更新エラー:', error);
-      setIsConnected(false);
-    }
-  }, [callsign, frequency, mode]);
-
-  // オンライン局の取得
-  const fetchOnlineStations = useCallback(async () => {
-    try {
-      // 過去2分以内にアクティブな局を取得
-      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      
-      const presenceMessages = await base44.entities.RadioMessage.filter({
-        content: '__PRESENCE__'
-      }, '-updated_date', 50);
-
-      // 最近更新された局のみフィルタ
-      const activeStations = presenceMessages
-        .filter(p => p.updated_date >= twoMinutesAgo)
-        .map(p => ({
-          callsign: p.callsign,
-          frequency: p.frequency,
-          mode: p.mode,
-          lastSeen: p.updated_date
-        }));
-
-      setOnlineStations(activeStations);
-    } catch (error) {
-      console.error('オンライン局取得エラー:', error);
-    }
-  }, []);
-
-  // 新しいメッセージの取得
-  const fetchMessages = useCallback(async () => {
-    try {
-      // 同じ周波数帯（±5kHz）のメッセージを取得
-      const recentMessages = await base44.entities.RadioMessage.filter({
-        content: { $ne: '__PRESENCE__' }
-      }, '-created_date', 50);
-
-      // 周波数でフィルタリング
-      const frequencyMessages = recentMessages.filter(msg => 
-        Math.abs((msg.frequency || 0) - frequency) < 0.005
-      );
-
-      // 新しいメッセージがあれば追加
-      if (frequencyMessages.length > 0) {
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const newMessages = frequencyMessages.filter(m => !existingIds.has(m.id));
-          
-          if (newMessages.length > 0) {
-            return [...prev, ...newMessages].slice(-100); // 最大100件保持
-          }
-          return prev;
-        });
-      }
-    } catch (error) {
-      console.error('メッセージ取得エラー:', error);
-    }
-  }, [frequency]);
-
-  // メッセージ送信
-  const sendMessage = useCallback(async (content, morseCode = '', audioUrl = '') => {
-    if (!callsign) {
-      console.error('コールサインが設定されていません');
-      return false;
-    }
-
-    try {
-      const messageData = {
-        callsign,
-        frequency,
-        mode,
-        content,
-        morse_code: morseCode,
-        audio_url: audioUrl,
-        timestamp: new Date().toISOString()
-      };
-
-      const created = await base44.entities.RadioMessage.create(messageData);
-      
-      // ローカルにも追加
-      setMessages(prev => [...prev, { ...messageData, id: created.id }]);
-      
-      return true;
-    } catch (error) {
-      console.error('メッセージ送信エラー:', error);
-      return false;
-    }
-  }, [callsign, frequency, mode]);
-
-  // ポーリング開始
+  // 初回：callsignがあるなら登録（サーバ側でオンライン扱い）
   useEffect(() => {
     if (!callsign) return;
+    registerStation(callsign).catch(() => {
+      // 失敗してもUIは動かす。ログイン制ではない想定。
+    });
+  }, [callsign]);
 
-    // 初回取得
-    updatePresence();
-    fetchOnlineStations();
-    fetchMessages();
+  // recent messages / stations をポーリング（WSが死んでも最低限動く）
+  useEffect(() => {
+    let cancelled = false;
 
-    // 定期的なポーリング
-    pollingInterval.current = setInterval(() => {
-      updatePresence();
-      fetchOnlineStations();
-      fetchMessages();
-    }, 3000); // 3秒ごと
+    async function tick() {
+      try {
+        const [ms, st] = await Promise.all([
+          getRecentMessages({ channel, limit: 200 }),
+          getOnlineStations({ channel }),
+        ]);
+        if (cancelled) return;
+        setMessages(Array.isArray(ms) ? ms : []);
+        setOnlineStations(Array.isArray(st) ? st : []);
+      } catch {
+        // 無視
+      }
+    }
+
+    tick();
+    pollRef.current = setInterval(tick, 3000);
 
     return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [channel]);
+
+  // WebSocket 接続
+  useEffect(() => {
+    // callsign未設定ならWSは繋がない
+    if (!callsign) {
+      setIsConnected(false);
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {}
+      }
+      wsRef.current = null;
+      return;
+    }
+
+    const ws = new WebSocket(getWsUrl({ callsign, channel }));
+    wsRef.current = ws;
+
+    ws.onopen = () => setIsConnected(true);
+    ws.onclose = () => setIsConnected(false);
+    ws.onerror = () => setIsConnected(false);
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        // サーバ想定：
+        // { type:"message", message:{...} } や { type:"stations", stations:[...] } 等
+        if (msg?.type === "message" && msg.message) {
+          setMessages((prev) => [...prev, msg.message]);
+        } else if (msg?.type === "messages" && Array.isArray(msg.messages)) {
+          setMessages(msg.messages);
+        } else if (msg?.type === "stations" && Array.isArray(msg.stations)) {
+          setOnlineStations(msg.stations);
+        }
+      } catch {
+        // 無視
       }
     };
-  }, [callsign, updatePresence, fetchOnlineStations, fetchMessages]);
 
-  // リアルタイム購読（サブスクリプション）
-  useEffect(() => {
-    const unsubscribe = base44.entities.RadioMessage.subscribe((event) => {
-      if (event.type === 'create' && event.data.content !== '__PRESENCE__') {
-        // 同じ周波数帯のメッセージのみ
-        if (Math.abs((event.data.frequency || 0) - frequency) < 0.005) {
-          setMessages(prev => {
-            const exists = prev.some(m => m.id === event.id);
-            if (!exists) {
-              return [...prev, event.data].slice(-100);
-            }
-            return prev;
-          });
-        }
+    return () => {
+      try {
+        ws.close();
+      } catch {}
+    };
+  }, [callsign, channel]);
+
+  // UI互換：sendMessage(text, morse, audioUrl?) だが audioUrlは未対応
+  const sendMessage = useCallback(
+    async (text, morse /* , audioUrl */) => {
+      if (!callsign) return false;
+
+      // 今はCW中心：morseがあればそれを一次データとして送る
+      const morsePayload = String(morse || "").trim();
+      const textPreview = String(text || "").trim();
+
+      try {
+        await sendCwMorse({
+          fromCallsign: callsign,
+          toCallsign: null,
+          channel,
+          morse: morsePayload || "",
+          textPreview: textPreview || "",
+        });
+        return true;
+      } catch {
+        return false;
       }
-    });
-
-    return unsubscribe;
-  }, [frequency]);
-
-  // 周波数変更時にメッセージをクリア
-  useEffect(() => {
-    setMessages([]);
-    fetchMessages();
-  }, [frequency]);
+    },
+    [callsign, channel]
+  );
 
   return {
     messages,
@@ -203,6 +170,6 @@ export default function useP2PRadio(frequency, mode) {
     callsign,
     setCallsign,
     isConnected,
-    sendMessage
+    sendMessage,
   };
 }
