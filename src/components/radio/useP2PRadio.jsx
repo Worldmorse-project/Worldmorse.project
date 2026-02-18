@@ -112,7 +112,7 @@ export default function useP2PRadio(frequency, mode) {
           getOnlineStations({ channel }),
         ]);
         if (cancelled) return;
-        setMessages(Array.isArray(ms) ? ms : []);
+        setMessages(Array.isArray(ms) ? ms.map(normalizeMessage) : []);
         setOnlineStations(Array.isArray(st) ? st : []);
       } catch {
         // 無視
@@ -208,4 +208,5 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
