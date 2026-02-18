@@ -154,14 +154,14 @@ export default function useP2PRadio(frequency, mode) {
       try {
         const msg = JSON.parse(ev.data);
         // サーバ想定：
-        // { type:"message", message:{...} } や { type:"stations", stations:[...] } 等
-        if (msg?.type === "message" && msg.message) {
-          setMessages((prev) => [...prev, msg.message]);
-        } else if (msg?.type === "messages" && Array.isArray(msg.messages)) {
-          setMessages(msg.messages);
-        } else if (msg?.type === "stations" && Array.isArray(msg.stations)) {
-          setOnlineStations(msg.stations);
-        }
+       // サーバ(server.js)側は { kind: "message", message: {...} } を送る
+     if (msg?.kind === "message" && msg.message) {
+       setMessages((prev) => [...prev, normalizeMessage(msg.message)]);
+    } else if (msg?.kind === "messages" && Array.isArray(msg.messages)) {
+     setMessages(msg.messages.map(normalizeMessage));
+    } else if (msg?.kind === "stations" && Array.isArray(msg.stations)) {
+    setOnlineStations(msg.stations);
+     }
       } catch {
         // 無視
       }
@@ -208,5 +208,6 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
