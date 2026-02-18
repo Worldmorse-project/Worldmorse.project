@@ -20,6 +20,41 @@ function normalizeCallsign(cs) {
   return String(cs || "").trim().toUpperCase();
 }
 
+function normalizeMessage(raw) {
+  // API -> UI 形式に寄せる
+  const type = String(raw?.type || "");
+  const payload = raw?.payload || {};
+
+  const mode = type === "CW_MORSE" ? "morse" : "ssb";
+
+  return {
+    // 既存
+    id: raw?.id,
+    callsign: raw?.callsign,
+    // ChatLog が msg.timestamp を見てるので合わせる
+    timestamp: raw?.created_at || raw?.timestamp,
+
+    // ChatLog が msg.mode を見て CW/SSB を決める
+    mode,
+
+    // ChatLog が msg.morse_code / msg.content を参照
+    morse_code: String(payload?.morse || ""),
+    content: String(payload?.textPreview || payload?.text || ""),
+
+    // ChatLog が msg.frequency を参照（channel= "7.050" を周波数扱いにする）
+    frequency: Number(raw?.channel) || undefined,
+
+    // 互換用（いま未使用なら空）
+    audio_url: payload?.audio_url || payload?.file_url || undefined,
+
+    // 元も残す（デバッグに使える）
+    type,
+    payload,
+    channel: raw?.channel,
+    toCallsign: raw?.toCallsign,
+  };
+}
+
 function loadCallsign() {
   try {
     const v = localStorage.getItem("wm_callsign");
@@ -173,3 +208,4 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
