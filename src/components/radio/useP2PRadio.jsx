@@ -15,6 +15,17 @@ import {
  * 返り値の形は既存UI(Home.jsx)に合わせている：
  * { messages, onlineStations, callsign, setCallsign, isConnected, sendMessage }
  */
+function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
 
 function normalizeCallsign(cs) {
   return String(cs || "").trim().toUpperCase();
@@ -208,6 +219,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
