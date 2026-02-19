@@ -45,7 +45,7 @@ export default function SpectrumDisplay({ frequency, isReceiving, signalStrength
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const width = canvas.width;
     const height = canvas.height;
 
@@ -125,13 +125,16 @@ export default function SpectrumDisplay({ frequency, isReceiving, signalStrength
     const canvas = waterfallRef.current;
     if (!canvas || spectrumData.length === 0) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const width = canvas.width;
     const height = canvas.height;
 
-    // 既存の画像を1ピクセル下にスクロール
-    const imageData = ctx.getImageData(0, 0, width, height - 2);
-    ctx.putImageData(imageData, 0, 2);
+    // 既存の画像を2px下にスクロール（高速・安全）
+    ctx.drawImage(canvas, 0, 0, width, height - 2, 0, 2, width, height - 2);
+
+    // 上端をクリア
+    ctx.clearRect(0, 0, width, 2);
+
 
     // 新しい行を描画
     spectrumData.forEach((value, index) => {
@@ -217,4 +220,5 @@ export default function SpectrumDisplay({ frequency, isReceiving, signalStrength
       </div>
     </div>
   );
+
 }
