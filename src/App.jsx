@@ -19,6 +19,12 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  React.useEffect(() => {
+  if (authError?.type === "auth_required") {
+    navigateToLogin();
+  }
+}, [authError, navigateToLogin]);
+
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -81,6 +87,7 @@ function App() {
 }
 
 export default App
+
 
 
 
