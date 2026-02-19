@@ -139,7 +139,7 @@ export default function useP2PRadio(frequency, mode) {
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = null;
     };
-  }, [channel]);
+  }, [channelDebounced]);
 
   // WebSocket 接続
   useEffect(() => {
@@ -220,6 +220,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
