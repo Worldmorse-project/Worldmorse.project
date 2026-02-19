@@ -89,6 +89,7 @@ function saveCallsign(cs) {
 
 export default function useP2PRadio(frequency, mode) {
   const channel = useMemo(() => Number(frequency).toFixed(3), [frequency]);
+  const channelDebounced = useDebouncedValue(channel, 300);
 
   const [callsign, setCallsignState] = useState(() => loadCallsign());
   const [isConnected, setIsConnected] = useState(false);
@@ -219,6 +220,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
