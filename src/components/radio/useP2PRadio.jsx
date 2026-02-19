@@ -120,8 +120,8 @@ export default function useP2PRadio(frequency, mode) {
     async function tick() {
       try {
         const [ms, st] = await Promise.all([
-          getRecentMessages({ channel, limit: 200 }),
-          getOnlineStations({ channel }),
+          getRecentMessages({ channel: channelDebounced, limit: 200 }),
+          getOnlineStations({ channel: channelDebounced }),
         ]);
         if (cancelled) return;
         setMessages(Array.isArray(ms) ? ms.map(normalizeMessage) : []);
@@ -155,7 +155,7 @@ export default function useP2PRadio(frequency, mode) {
       return;
     }
 
-    const ws = new WebSocket(getWsUrl({ callsign, channel }));
+        const ws = new WebSocket(getWsUrl({ callsign, channel: channelDebounced }));
     wsRef.current = ws;
 
     ws.onopen = () => setIsConnected(true);
@@ -183,8 +183,7 @@ export default function useP2PRadio(frequency, mode) {
       try {
         ws.close();
       } catch {}
-    };
-  }, [callsign, channel]);
+    }; [callsign, channelDebounced]);
 
   // UI互換：sendMessage(text, morse, audioUrl?) だが audioUrlは未対応
   const sendMessage = useCallback(
@@ -196,19 +195,19 @@ export default function useP2PRadio(frequency, mode) {
       const textPreview = String(text || "").trim();
 
       try {
-        await sendCwMorse({
+                await sendCwMorse({
           fromCallsign: callsign,
-          toCallsign: null,
-          channel,
-          morse: morsePayload || "",
-          textPreview: textPreview || "",
+          channel: channelDebounced,
+          morse,
+          textPreview: text,
         });
+
         return true;
       } catch {
         return false;
       }
     },
-    [callsign, channel]
+        [callsign, channelDebounced]
   );
 
   return {
@@ -220,6 +219,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
