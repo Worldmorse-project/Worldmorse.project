@@ -107,6 +107,11 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState(isMobile ? "radio" : "radio");
   const [signalStrength, setSignalStrength] = useState(5);
   const [isLiveSignal, setIsLiveSignal] = useState(false);
+    
+  const safeSetFrequency = useCallback((v) => {
+    const n = typeof v === "number" ? v : Number(v);
+    setFrequency(Number.isFinite(n) ? n : 7.05);
+  }, []);
 
   const audioRef = useRef(null);
   const liveSignalTimeoutRef = useRef(null);
@@ -780,3 +785,4 @@ export default function Home() {
     </div>
   );
 }
+
