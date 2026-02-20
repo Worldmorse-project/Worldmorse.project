@@ -585,7 +585,7 @@ export default function Home() {
                   }`}
                 >
                   {isConnected
-                    ? `📡 ${frequency.toFixed(3)} MHz - ${callsign || "No callsign"}`
+                    ? `📡 ${Number(frequency).toFixed(3)} MHz - ${callsign || "No callsign"}`
                     : "⚠️ Offline - Set your callsign / コールサインを設定"}
                 </div>
 
@@ -644,7 +644,7 @@ export default function Home() {
                 <div className="mt-4 bg-zinc-900/40 border border-zinc-800 rounded-xl p-3">
                   <div className="flex items-center justify-between">
                     <div className="text-zinc-300 text-sm">FREQ</div>
-                    <div className="font-mono text-amber-400 text-lg">{frequency.toFixed(3)} MHz</div>
+                    <div className="font-mono text-amber-400 text-lg">{Number(frequency).toFixed(3)} MHz</div>
                   </div>
 
                   <div className="mt-2 flex items-center gap-2">
@@ -751,7 +751,7 @@ export default function Home() {
                 }`}
               >
                 {isConnected
-                  ? `📡 ${frequency.toFixed(3)} MHz - ${callsign || "No callsign"}`
+                  ? `📡 ${Number(frequency).toFixed(3)} MHz - ${callsign || "No callsign"}`
                   : "⚠️ Offline - Set your callsign / コールサインを設定"}
               </div>
 
@@ -785,5 +785,6 @@ export default function Home() {
     </div>
   );
 }
+
 
 
