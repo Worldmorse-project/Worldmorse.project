@@ -36,7 +36,7 @@ function normalizeMessage(raw) {
   const type = String(raw?.type || "");
   const payload = raw?.payload || {};
 
-  const mode = type === "CW_MORSE" ? "morse" : "ssb";
+  const mode = payload?.morse ? "morse" : (type === "CW_MORSE" ? "morse" : "ssb");
 
   return {
     // 既存
@@ -218,6 +218,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
