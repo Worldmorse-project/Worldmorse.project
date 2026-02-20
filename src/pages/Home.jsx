@@ -438,7 +438,7 @@ export default function Home() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                       <div className="flex justify-center">
-                        <FrequencyDial frequency={frequency} onChange={setFrequency} />
+                        <FrequencyDial frequency={frequency} onChange={safeSetFrequency} />
                       </div>
 
                       <div className="flex justify-center">
@@ -785,4 +785,5 @@ export default function Home() {
     </div>
   );
 }
+
 
