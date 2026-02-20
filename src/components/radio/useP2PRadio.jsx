@@ -179,11 +179,10 @@ export default function useP2PRadio(frequency, mode) {
       }
     };
 
-    return () => {
-      try {
-        ws.close();
-      } catch {}
-    }; [callsign, channelDebounced]);
+      return () => {
+    try { ws.close(); } catch {}
+  };
+}, [callsign, channelDebounced]);
 
   // UI互換：sendMessage(text, morse, audioUrl?) だが audioUrlは未対応
   const sendMessage = useCallback(
@@ -219,6 +218,7 @@ export default function useP2PRadio(frequency, mode) {
     sendMessage,
   };
 }
+
 
 
 
