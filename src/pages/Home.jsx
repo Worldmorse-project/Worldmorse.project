@@ -536,7 +536,7 @@ export default function Home() {
 
                     <div className="grid grid-cols-2 gap-6 mt-6">
                       <div className="flex justify-center">
-                        <FrequencyDial frequency={frequency} onChange={setFrequency} />
+                        <FrequencyDial frequency={frequency} onChange={safeSetFrequency} />
                       </div>
                       <div className="flex justify-center">
                         <MorseKey
@@ -785,6 +785,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 
